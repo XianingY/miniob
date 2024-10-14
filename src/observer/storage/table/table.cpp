@@ -145,7 +145,7 @@ RC Table::drop(const char *path)
     record_handler_ = nullptr;
   }
 
-  for (auto &index : indexes_) {
+  for (auto &index : indexes_) { 
     index->destroy();
     delete index;
     index = nullptr;
