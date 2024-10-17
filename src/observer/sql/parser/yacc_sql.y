@@ -97,6 +97,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         VALUES
         FROM
         WHERE
+        NOT
         AND
         SET
         ON
@@ -658,6 +659,7 @@ comp_op:
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
     | LK { $$ = LIKE; }
+    | NOT LK { $$ = NOT_LIKE; }
     ;
 
 // your code here

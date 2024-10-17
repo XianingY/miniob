@@ -173,6 +173,20 @@ struct Like
     }
 };
 
+struct NotLike
+{
+    // 模板函数，支持任意类型的比较操作
+    template <class T>
+    static inline bool operation(const T &left, const T &right) {
+        return left != right; // 默认情况下使用 '!=' 进行比较
+    }
+
+    // 针对 CharType 类型的特化实现
+    static inline bool operation(const Value &left, const Value &right) {
+        return !Like::operation(left, right);
+    }
+};
+
 struct AddOperator
 {
   template <class T>
@@ -417,6 +431,9 @@ void compare_result(T *left, T *right, int n, std::vector<uint8_t> &result, Comp
     }
     case CompOp::LIKE: {
       compare_operation<T, LEFT_CONSTANT, RIGHT_CONSTANT, Like>(left, right, n, result);
+    }
+    case CompOp::NOT_LIKE: {
+      compare_operation<T, LEFT_CONSTANT, RIGHT_CONSTANT, NotLike>(left, right, n, result);
     }
     default: break;
   }
