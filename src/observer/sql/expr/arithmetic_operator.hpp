@@ -1,4 +1,4 @@
-/* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
+/* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.g
 miniob is licensed under Mulan PSL v2.
 You can use this software according to the terms and conditions of the Mulan PSL v2.
 You may obtain a copy of Mulan PSL v2 at:
@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #endif
 
 #include "storage/common/column.h"
+#include "common/type/char_type.h"
 
 struct Equal
 {
@@ -125,6 +126,51 @@ struct LessEqual
     return _mm256_or_si256(_mm256_cmpgt_epi32(right, left), _mm256_cmpeq_epi32(left, right));
   }
 #endif
+};
+
+struct Like
+{
+    // 模板函数，支持任意类型的比较操作
+    template <class T>
+    static inline bool operation(const T &left, const T &right) {
+        return left == right; // 默认情况下使用 '==' 进行比较
+    }
+
+    // 针对 CharType 类型的特化实现
+    static inline bool operation(const Value &left, const Value &right) {
+        const char *star = nullptr;
+        const char *match = nullptr;
+        const char *str = left.data();
+        const char *pattern = right.data();
+
+        while (*str) {
+            if ((*pattern == *str) || (*pattern == '_')) {
+                str++;
+                pattern++;
+                continue;
+            }
+
+            if (*pattern == '%') {
+                star = pattern++;
+                match = str;
+                continue;
+            }
+
+            if (star) {
+                pattern = star + 1;
+                str = ++match;
+                continue;
+            }
+
+            return false;
+        }
+
+        while (*pattern == '%') {
+            pattern++;
+        }
+
+        return *pattern == '\0';
+    }
 };
 
 struct AddOperator
@@ -368,6 +414,9 @@ void compare_result(T *left, T *right, int n, std::vector<uint8_t> &result, Comp
     case CompOp::LESS_THAN: {
       compare_operation<T, LEFT_CONSTANT, RIGHT_CONSTANT, LessThan>(left, right, n, result);
       break;
+    }
+    case CompOp::LIKE: {
+      compare_operation<T, LEFT_CONSTANT, RIGHT_CONSTANT, Like>(left, right, n, result);
     }
     default: break;
   }

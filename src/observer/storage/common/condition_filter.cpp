@@ -145,6 +145,7 @@ bool DefaultConditionFilter::filter(const Record &rec) const
     case LESS_THAN: return cmp_result < 0;
     case GREAT_EQUAL: return cmp_result >= 0;
     case GREAT_THAN: return cmp_result > 0;
+    case LIKE: return 0 == cmp_result;
 
     default: break;
   }
