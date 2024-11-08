@@ -197,6 +197,13 @@ public:
   virtual RC delete_record(const RID *rid) { return RC::UNIMPLEMENTED; }
 
   /**
+   * @brief 更新一条记录
+   *
+   * @param rec 要更新的记录
+   */
+  virtual RC update_record(Record *rec);
+
+  /**
    * @brief
    *
    */
@@ -378,6 +385,14 @@ public:
    * @param rid 待删除记录的标识符
    */
   RC delete_record(const RID *rid);
+
+
+    /**
+   * @brief 更新一条记录
+   *
+   * @param data 要更新的记录
+   */
+  RC update_record(Record *rec);
 
   /**
    * @brief 插入一个新的记录到指定文件中，并返回该记录的标识符
