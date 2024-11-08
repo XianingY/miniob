@@ -478,89 +478,89 @@ RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_
   return rc;
 }
 
-RC Table::update_record(Record &record ,const char* attr_name,Value * value)
+RC Table::update_record(Record &record, const char* attr_name, Value *value)
 {
-  RC rc = RC::SUCCESS;
-  int field_offset = -1;
-  int field_length = -1;
-  bool is_index = false;
-  const int sys_field_num = table_meta_.sys_field_num();
-  const int user_field_num = table_meta_.field_num() - sys_field_num;
-  for(int i = 0 ; i < user_field_num ; ++i)
-  {
-    const FieldMeta *field_meta = table_meta_.field( i + sys_field_num);
-    const char * field_name = field_meta -> name();
-    if( 0 != strcmp(field_name,attr_name))
-    {
-      continue;
+  try {
+    RC rc = RC::SUCCESS;
+    int field_offset = -1;
+    int field_length = -1;
+    bool is_index = false;
+    const int sys_field_num = table_meta_.sys_field_num();
+    const int user_field_num = table_meta_.field_num() - sys_field_num;
+
+    // 查找字段
+    for (int i = 0; i < user_field_num; ++i) {
+      const FieldMeta *field_meta = table_meta_.field(i + sys_field_num);
+      const char *field_name = field_meta->name();
+      if (0 != strcmp(field_name, attr_name)) {
+        continue;
+      }
+      AttrType attr_type = field_meta->type();
+      AttrType value_type = value->attr_type();
+      if (attr_type != value_type) {
+        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
+                 name(), field_meta->name(), attr_type, value_type);
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
+      field_offset = field_meta->offset();
+      field_length = field_meta->len();
+      if (nullptr != find_index_by_field(field_name)) {
+        is_index = true;
+      }
+      break;
     }
-    AttrType attr_type= field_meta->type();
-    AttrType value_type = value->attr_type();
-    if(attr_type != value_type)
-    {
-      LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
-          name(),
-          field_meta->name(),
-          attr_type,
-          value_type);
-      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-    }
-    field_offset = field_meta->offset();
-    field_length = field_meta->len();
-    if (nullptr != find_index_by_field(field_name)) 
-    {
-      is_index = true;
-    }
-    break;
-  }
-  if(field_length < 0 || field_offset < 0)
-  {
-    LOG_WARN("field not find ,field name = %s",attr_name);
+
+    // 字段不存在
+    if (field_length < 0 || field_offset < 0) {
+      LOG_WARN("field not found, field name = %s", attr_name);
       return RC::SCHEMA_FIELD_NOT_EXIST;
-  }
-  
-  if( 0 == memcmp(record.data()+field_offset,value->data(),field_length))
-  {
-    LOG_WARN("update old value equals new value");
-    return RC::RECORD_DUPLICATE_KEY;
-  }
- 
-  char *old_data = record.data();
-  char *data = new char[table_meta_.record_size()]; 
-  memcpy(data, old_data, table_meta_.record_size());
-  memcpy(data + field_offset, value->data(), field_length);
-  record.set_data(data);
-  if(is_index)
-  {
-    rc = insert_entry_of_indexes(record.data(), record.rid());
-    if (rc != RC::SUCCESS) { 
-      RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false);
-      if (rc2 != RC::SUCCESS) {
-        LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
-                  name(), rc2, strrc(rc2));
+    }
+
+    // 新旧值相同
+    if (0 == memcmp(record.data() + field_offset, value->data(), field_length)) {
+      LOG_WARN("update old value equals new value");
+      return RC::RECORD_DUPLICATE_KEY;
+    }
+
+    // 更新记录数据
+    char *data = record.data();
+    memcpy(data + field_offset, value->data(), field_length);
+
+    // 插入索引
+    if (is_index) {
+      rc = insert_entry_of_indexes(data, record.rid());
+      if (rc != RC::SUCCESS) {
+        RC rc2 = delete_entry_of_indexes(data, record.rid(), false);
+        if (rc2 != RC::SUCCESS) {
+          LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
+                    name(), rc2, strrc(rc2));
+        }
+        return rc;
+      }
+    }
+
+    // 更新记录
+    rc = record_handler_->update_record(&record);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to update record (rid=%d.%d). rc=%d:%s", record.rid().page_num, record.rid().slot_num, rc, strrc(rc));
+      return rc;
+    }
+
+    // 删除旧索引
+    if (is_index) {
+      rc = delete_entry_of_indexes(data, record.rid(), false);
+      if (rc != RC::SUCCESS) {
+        LOG_ERROR("Failed to delete indexes of record (rid=%d.%d). rc=%d:%s",
+                  record.rid().page_num, record.rid().slot_num, rc, strrc(rc));
       }
       return rc;
     }
-  }
-  record_handler_->update_record(&record);
-  if (rc != RC::SUCCESS) {
-    LOG_ERROR(
-        "Failed to update record (rid=%d.%d). rc=%d:%s", record.rid().page_num, record.rid().slot_num, rc, strrc(rc));
+
     return rc;
+  } catch (const std::bad_alloc& e) {
+    LOG_ERROR("Memory allocation failed: %s", e.what());
+    return RC::INTERNAL;
   }
-  if (is_index) {
-    rc = delete_entry_of_indexes(old_data, record.rid(), false);
-    if (rc != RC::SUCCESS) {
-      LOG_ERROR("Failed to delete indexes of record (rid=%d.%d). rc=%d:%s",
-          record.rid().page_num,
-          record.rid().slot_num,
-          rc,
-          strrc(rc));
-    }
-    return rc;
-  }
-  free(old_data);
-  return rc;
 }
 
 RC Table::delete_record(const RID &rid)
