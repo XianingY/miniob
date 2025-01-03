@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Longda on 2010
 //
 
+
 #include <errno.h>
 #include <string.h>
 
@@ -21,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/defs.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+
 
 namespace common {
 
@@ -168,7 +170,7 @@ int Ini::load(const std::string &file_name)
         // this line isn't finished, need continue
         continue_last_line = true;
 
-        // remove the last character
+        /* remove the last character*/
         line_entry = line_entry.substr(0, line_entry.size() - 1);
         continue;
       } else {
