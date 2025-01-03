@@ -1,44 +1,37 @@
-/* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
-miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
-         http://license.coscl.org.cn/MulanPSL2
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-See the Mulan PSL v2 for more details. */
-
-//
-// Created by WangYunlai on 2022/6/27.
-//
-
 #pragma once
+
 #include <vector>
+
 #include "sql/operator/logical_operator.h"
 #include "sql/parser/parse_defs.h"
-#include "common/value.h"
-#include "storage/field/field.h"
-/**
- * @brief 更新逻辑算子
- * @ingroup LogicalOperator
- */
+#include "storage/field/field_meta.h"
+
+
 class UpdateLogicalOperator : public LogicalOperator
 {
 public:
-  UpdateLogicalOperator(Table *table, std::vector<Value> &values,std::vector<FieldMeta> & fields);
-  virtual ~UpdateLogicalOperator() = default;
+  UpdateLogicalOperator(Table *table, std::vector<Value> values, std::vector<const FieldMeta *> field_metas,bool b = false);
+
   LogicalOperatorType type() const override
   {
     return LogicalOperatorType::UPDATE;
   }
+
   Table *table() const { return table_; }
   const std::vector<Value> &values() const { return values_; }
   std::vector<Value> &values() { return values_; }
-  const std::vector<FieldMeta> &fields() const { return fields_; }
-  std::vector<FieldMeta> &fields() { return fields_; }
-  
+  std::vector<const FieldMeta *> field_metas() const{
+    return field_metas_;
+  }
+  void set_field_has_mutli_row(bool field_has_mutli_row){
+    this->field_has_mutli_row_ = field_has_mutli_row;
+  }
+  bool has_mutli_col(){
+    return field_has_mutli_row_;
+  }
 private:
   Table *table_ = nullptr;
   std::vector<Value> values_;
-  std::vector<FieldMeta> fields_;
-};
+  bool field_has_mutli_row_ = false;
+  std::vector<const FieldMeta *> field_metas_;
+  };

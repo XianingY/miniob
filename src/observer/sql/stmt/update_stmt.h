@@ -16,8 +16,10 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/rc.h"
 #include "sql/stmt/stmt.h"
-#include "storage/field/field.h"
+#include <string>
 #include "sql/stmt/filter_stmt.h"
+#include "storage/field/field_meta.h"
+#include "subquery_helper.h"
 
 class Table;
 
@@ -25,39 +27,52 @@ class Table;
  * @brief 更新语句
  * @ingroup Statement
  */
-class UpdateStmt : public Stmt
+class UpdateStmt : public Stmt 
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(Table *table, const Value *values, int value_amount,FieldMeta field,FilterStmt *filter_stmt);
-  ~UpdateStmt() override;
+  UpdateStmt(Table *table, std::vector<const FieldMeta *> field_metas , FilterStmt *filter_stmt , Value *values, int value_amount,bool b=false);
+
+    StmtType type() const override
+  {
+    return StmtType::UPDATE;
+  }
+
 
 public:
   static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
-  Table *table() const { return table_; }
-  const Value *values() const { return values_; }
-  int    value_amount() const { return value_amount_; }
-
-  StmtType type() const override
+  Table *table() const
   {
-    return StmtType::UPDATE;
+    return table_;
   }
-  std::vector<FieldMeta>* update_fields()
+  Value *values() const
   {
-    return &fields_;
+    return values_;
   }
-  FilterStmt * filter_stmt()
+  int value_amount() const
+  {
+    return value_amount_;
+  }
+  FilterStmt *filter_stmt() const
   {
     return filter_stmt_;
   }
-
+  std::vector<const FieldMeta *> field_metas() const{
+    return field_metas_;
+  }
+  void set_has_multi_rows(bool has_multi_rows){
+    this->has_multi_rows_ = has_multi_rows;
+  }
+  bool has_multi_rows(){
+    return has_multi_rows_;
+  }
 private:
-  Table *table_        = nullptr;
-  const Value *values_       = nullptr;
-  int    value_amount_ = 0;
-
-  std::vector<FieldMeta> fields_;
+  Table *table_ = nullptr;
+  Value *values_ = nullptr;
+  std::vector<const FieldMeta *> field_metas_;
   FilterStmt *filter_stmt_ = nullptr;
+  int value_amount_ = 0;
+  bool has_multi_rows_ = false;
 };
